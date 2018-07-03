@@ -1,6 +1,6 @@
 import sys
 import requests
-from binna.splash import splash
+from bin.splash import splash
 
 class bittrex_orderer:
 	def __init__(self, api_key):
