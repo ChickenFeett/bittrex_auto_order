@@ -1,7 +1,7 @@
 import os
 class splash:
 	@staticmethod
-	def printSplashScreen():
+	def print_splash_screen():
 		os.system('cls')
 		print "                                                                             "
 		print "                                                                             "
