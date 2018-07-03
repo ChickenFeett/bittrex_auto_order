@@ -13,7 +13,6 @@ class bittrex_orderer:
 
 splash.printSplashScreen()	
 
-
 b_orderer = bittrex_orderer("api_key")
 if not b_orderer.login():
 	print "Login failed. Please retry."
