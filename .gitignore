@@ -1,2 +1,5 @@
 *.pyc
 api_key
+orders.csv
+*.csv
+.idea
