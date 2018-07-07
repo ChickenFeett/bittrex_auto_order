@@ -34,12 +34,13 @@ class Utilities:
                 rows_processed = rows_processed + 1
         print str(rows_processed) + " records read"
         print str(len(orders)) + " buy orders found"
+        return orders
 
     @staticmethod
     def create_order(row, index):
         if Utilities.row_is_valid_buy_order(row):
             return Order(index+1,
-                         row[Utilities.key_type],
+                         row[Utilities.key_exchange],
                          row[Utilities.key_quantity],
                          row[Utilities.key_limit],
                          row[Utilities.key_price])
