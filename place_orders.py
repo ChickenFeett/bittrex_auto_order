@@ -1,4 +1,5 @@
 import sys
+import time
 import requests
 from bin.splash import Splash
 from bin.utilities import Utilities
@@ -25,7 +26,7 @@ class BittrexOrderer:
         return contents
 
     @staticmethod
-    def read_api_key():
+    def read_secret_key():
         f = open('secret_key', 'r')
         contents = f.read()
         if len(contents) != EXPECTED_SECRET_KEY_LENGTH:
@@ -34,13 +35,35 @@ class BittrexOrderer:
 
     @staticmethod
     def create_hash(secret_key, url):
-        return hmac.new(secret_key, url, hashlib.sha512)
+        return hmac.new(secret_key, url, hashlib.sha512).hexdigest()
+
+    @staticmethod
+    def send_request(url):
+        url = url + str(int(time.time()))
+        hmac_hash = b_order.create_hash(secret_key, url)
+        headers = {'apisign': hmac_hash}
+        return requests.get(url, headers=headers)
+
+
 
 Splash.print_splash_screen()
 b_order = BittrexOrderer()
 api_key = b_order.read_api_key()
 secret_key = b_order.read_secret_key()
-orders = Utilities.read_orders_from_file()
-existing_orders = b_order.get_existing_orders(secret_key)
-for order in orders:
+holdings = Utilities.read_orders_from_file()
+nonce = str(int(time.time()))
+for holding_crypto in holdings:
+    print (holding_crypto.crypto_type + "\t|\t" + holding_crypto.quantity + "\t|\t" + holding_crypto.buy_cost)
+
+print "Attempting to lookup orders"
+r = b_order.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+api_key+"&nonce=")
+print r.status_code
+print r.json()
+open_orders = Utilities.read_orders_from_json(r.json())
+for order in open_orders:
     print (order.crypto_type + "\t|\t" + order.quantity + "\t|\t" + order.buy_cost)
+    for holding_crypto in holdings:
+        if holding_crypto.crypto_type == order.crypto_type:
+            print ("found match " + order.crypto_type)
+
+print "Exiting....."
