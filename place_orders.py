@@ -53,7 +53,7 @@ secret_key = b_order.read_secret_key()
 holdings = Utilities.read_orders_from_file()
 nonce = str(int(time.time()))
 for holding_crypto in holdings:
-    print (holding_crypto.crypto_type + "\t|\t" + holding_crypto.quantity + "\t|\t" + holding_crypto.buy_cost)
+    print (holding_crypto.crypto_type + "\t|\t" + str(holding_crypto.quantity) + "\t|\t" + str(holding_crypto.buy_cost))
 
 print "Attempting to lookup orders"
 r = b_order.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+api_key+"&nonce=")
@@ -61,7 +61,7 @@ print r.status_code
 print r.json()
 open_orders = Utilities.read_orders_from_json(r.json())
 for order in open_orders:
-    print (order.crypto_type + "\t|\t" + order.quantity + "\t|\t" + order.buy_cost)
+    print (order.crypto_type + "\t|\t" + str(order.quantity) + "\t|\t" + str(order.buy_cost))
     for holding_crypto in holdings:
         if holding_crypto.crypto_type == order.crypto_type:
             print ("found match " + order.crypto_type)

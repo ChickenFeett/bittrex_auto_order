@@ -1,4 +1,5 @@
 import csv
+import copy
 from crypto import Crypto
 from definitions import Definition
 
@@ -21,7 +22,41 @@ class Utilities:
                 rows_processed = rows_processed + 1
         print str(rows_processed) + " records read"
         print str(len(orders)) + " buy orders found"
+        Utilities.combine_duplicates(orders)
+        print str(len(orders)) + " unique buy orders"
         return orders
+
+    @staticmethod
+    def combine_duplicates(orders, index=0):
+        # Process all element up to n - 1
+        if index >= (len(orders) - 1):
+            return orders
+        
+        selected_element = orders.pop(index)
+        duplicate = False
+        for i in range(index, len(orders)):
+            if selected_element.crypto_type != orders[i].crypto_type:
+                continue
+            duplicate = True
+            combined_order = Utilities.create_combined_crypto(selected_element, orders[i])
+            orders.remove(orders[i])
+            orders.append(combined_order)
+            new_orders = Utilities.combine_duplicates(orders, index)
+            break
+        if duplicate:
+            return Utilities.combine_duplicates(new_orders, index)
+        else:
+            orders.insert(index, selected_element)
+            return Utilities.combine_duplicates(orders, index + 1)
+
+
+    @staticmethod
+    def create_combined_crypto(order1, order2):
+        total_cost = order1.buy_cost + order2.buy_cost
+        total_quantity = order1.quantity + order2.quantity
+        new_price_per_coin = total_cost / total_quantity
+        return Crypto(order1.order_id, order1.crypto_type, total_quantity, new_price_per_coin,
+                                total_cost)
 
     @staticmethod
     def read_orders_from_json(response):
