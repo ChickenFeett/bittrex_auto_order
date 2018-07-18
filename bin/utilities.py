@@ -1,7 +1,11 @@
 import csv
 import copy
 from crypto import Crypto
+from crypto_balance import CryptoBalance
+from order import Order
 from definitions import Definition
+from market_summary import MarketSummary
+
 
 class Utilities:
     def __init__(self):
@@ -31,17 +35,17 @@ class Utilities:
         # Process all element up to n - 1
         if index >= (len(orders) - 1):
             return orders
-        
-        selected_element = orders.pop(index)
+
         duplicate = False
+        selected_element = orders.pop(index)
         for i in range(index, len(orders)):
-            if selected_element.crypto_type != orders[i].crypto_type:
+            if selected_element.market != orders[i].market:
                 continue
-            duplicate = True
-            combined_order = Utilities.create_combined_crypto(selected_element, orders[i])
+            combined_order = Utilities.create_combined_order(selected_element, orders[i])
             orders.remove(orders[i])
             orders.append(combined_order)
             new_orders = Utilities.combine_duplicates(orders, index)
+            duplicate = True
             break
         if duplicate:
             return Utilities.combine_duplicates(new_orders, index)
@@ -51,11 +55,11 @@ class Utilities:
 
 
     @staticmethod
-    def create_combined_crypto(order1, order2):
+    def create_combined_order(order1, order2):
         total_cost = order1.buy_cost + order2.buy_cost
         total_quantity = order1.quantity + order2.quantity
         new_price_per_coin = total_cost / total_quantity
-        return Crypto(order1.order_id, order1.crypto_type, total_quantity, new_price_per_coin,
+        return Order(order1.order_id, order1.market, total_quantity, new_price_per_coin,
                                 total_cost)
 
     @staticmethod
@@ -68,7 +72,7 @@ class Utilities:
             return None
         results = response[Definition.api_key_result]
         for result in results:
-            order = Utilities.create_open_orders(result, rows_processed)
+            order = Utilities.get_open_orders(result, rows_processed)
             if order is not None:
                 orders.append(order)
             rows_processed = rows_processed + 1
@@ -77,8 +81,50 @@ class Utilities:
         return orders
 
     @staticmethod
-    def create_open_orders(response, index):
-        if Utilities.valid_open_orders(response):
+    def read_balances_from_json(response):
+        balances = []
+        rows_processed = 0
+        if response is None:
+            return None
+        if Definition.api_key_result not in response:
+            return None
+        results = response[Definition.api_key_result]
+        for result in results:
+            order = Utilities.get_balance(result, rows_processed)
+            if order is not None and order.balance > 0:
+                balances.append(order)
+            rows_processed = rows_processed + 1
+        print str(rows_processed) + " records read"
+        print str(len(balances)) + " open orders found"
+        return balances
+
+    @staticmethod
+    def get_balance(response, index):
+        if Utilities.valid_api_response(response, Definition.api_keys_balance):
+            return CryptoBalance(index + 1,
+                             response[Definition.api_key_Currency],
+                             response[Definition.api_key_Balance],
+                             response[Definition.api_key_Available],
+                             response[Definition.api_key_Pending],
+                             response[Definition.api_key_CryptoAddress])
+        return None
+
+    @staticmethod
+    def construct_market_summary_from_json(response):
+        if response is None:
+            return None
+        if Definition.api_key_result not in response:
+            return None
+        result = response[Definition.api_key_result]
+        if type(result) is list:
+            result = result[0]
+        if result is None:
+            return None
+        return Utilities.create_market_summary(result)
+
+    @staticmethod
+    def get_open_orders(response, index):
+        if Utilities.valid_api_response(response, Definition.api_keys_open_orders):
             return Crypto(index + 1,
                           response[Definition.api_key_Exchange],
                           response[Definition.api_key_Quantity],
@@ -87,29 +133,34 @@ class Utilities:
         return None
 
     @staticmethod
-    def valid_open_orders(response):
-        return (Definition.api_key_OrderUuid in response
-            and Definition.api_key_QuantityRemaining in response
-            and Definition.api_key_IsConditional in response
-            and Definition.api_key_ImmediateOrCancel in response
-            and Definition.api_key_Uuid in response
-            and Definition.api_key_Exchange in response
-            and Definition.api_key_OrderType in response
-            and Definition.api_key_Price in response
-            and Definition.api_key_CommissionPaid in response
-            and Definition.api_key_Opened in response
-            and Definition.api_key_Limit in response
-            and Definition.api_key_Closed in response
-            and Definition.api_key_ConditionTarget in response
-            and Definition.api_key_CancelInitiated in response
-            and Definition.api_key_PricePerUnit in response
-            and Definition.api_key_Condition in response
-            and Definition.api_key_Quantity in response)
+    def create_market_summary(response):
+        if Utilities.valid_api_response(response, Definition.api_keys_market_summary):
+            return MarketSummary(response[Definition.api_key_MarketName],
+                    response[Definition.api_key_High],
+                    response[Definition.api_key_Low],
+                    response[Definition.api_key_Volume],
+                    response[Definition.api_key_Last],
+                    response[Definition.api_key_BaseVolume],
+                    response[Definition.api_key_TimeStamp],
+                    response[Definition.api_key_Bid],
+                    response[Definition.api_key_Ask],
+                    response[Definition.api_key_OpenBuyOrders],
+                    response[Definition.api_key_OpenSellOrders],
+                    response[Definition.api_key_PrevDay],
+                    response[Definition.api_key_Created])
+        return None
+
+    @staticmethod
+    def valid_api_response(response, expected_keys):
+        for key in expected_keys:
+            if key not in response:
+                return False
+        return True
 
     @staticmethod
     def create_order_from_csv(row, index):
         if Utilities.csv_row_is_valid_buy_order(row):
-            return Crypto(index + 1,
+            return Order(index + 1,
                           row[Definition.csv_key_exchange],
                           row[Definition.csv_key_quantity],
                           row[Definition.csv_key_limit],
@@ -123,4 +174,4 @@ class Utilities:
                 and Definition.csv_key_quantity in row
                 and Definition.csv_key_limit in row
                 and Definition.csv_key_price in row
-                and row[Definition.csv_key_type] == Definition.LIMIT_BUY)
+                and row[Definition.csv_key_type] == Definition.LIMIT_BUY) # DO NOT PROCESS SELL ORDERS
