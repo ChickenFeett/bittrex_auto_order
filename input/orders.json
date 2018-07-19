@@ -1,0 +1,21 @@
+Replace this file with JSONified orders, in the following format:
+[
+  {
+    "crypto": "POWR",
+    "market": "BTC-POWR",
+    "quantity": 2283.864124,
+    "sell_quantity": 1141.932062,
+    "buy_price": 0.05012306,
+    "buy_cost": 12.11433023,
+    "sell_price": 0.99999999
+  },
+  {
+    "crypto": "ZCL",
+    "market": "BTC-ZCL",
+    "quantity": 155.4706983,
+    "sell_quantity": 77.73534915,
+    "buy_price": 0.15044912,
+    "buy_cost": 7.06982458,
+    "sell_price": 1.8089824
+  }
+]
