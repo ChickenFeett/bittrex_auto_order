@@ -1,4 +1,5 @@
 class Definition:
+    #****************   I N P U T    F I L E   S T U F F   ****************
     # CSV Input file keys
     csv_key_order_uuid = "OrderUuid"
     csv_key_exchange = "Exchange"
@@ -12,6 +13,19 @@ class Definition:
 
     LIMIT_BUY = "LIMIT_BUY"
     LIMIT_SELL = "LIMIT_SELL"
+
+    file_keys_historical_orders = [csv_key_order_uuid, csv_key_exchange, csv_key_type, csv_key_quantity, csv_key_limit, csv_key_commission_paid, csv_key_price, csv_key_opened, csv_key_closed]
+
+    # Input json file keys
+    file_key_crypto = "crypto"
+    file_key_market = "market"
+    file_key_quantity = "quantity"
+    file_key_sell_quantity = "sell_quantity"
+    file_key_buy_price = "buy_price"
+    file_key_buy_cost = "buy_cost"
+    file_key_sell_price = "sell_price"
+
+    file_keys_orders = [file_key_crypto, file_key_market, file_key_quantity, file_key_sell_quantity, file_key_buy_price, file_key_buy_cost, file_key_sell_price]
 
     #****************   A P I   S T U F F   ****************
 

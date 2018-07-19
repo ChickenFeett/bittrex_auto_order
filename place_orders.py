@@ -7,10 +7,24 @@ from bin.utilities import Utilities
 import hmac
 import hashlib
 import math
+import decimal
+
 
 EXPECTED_API_KEY_LENGTH = 32
 EXPECTED_SECRET_KEY_LENGTH = 32
+# create a new context for this task
+ctx = decimal.Context()
 
+# 20 digits should be enough for everyone :D
+ctx.prec = 20
+
+def float_to_str(f):
+    """
+    Convert the given float to a string,
+    without resorting to scientific notation
+    """
+    d1 = ctx.create_decimal(repr(f))
+    return format(d1, 'f')
 
 class BittrexOrderer:
     pending_orders = {}
@@ -42,7 +56,7 @@ class BittrexOrderer:
     @staticmethod
     def send_request(url):
         url = url + "&nonce=" + str(int(time.time()))
-        hmac_hash = b_order.create_hash(secret_key, url)
+        hmac_hash = BittrexOrderer.create_hash(secret_key, url)
         headers = {'apisign': hmac_hash}
         return requests.get(url, headers=headers)
 
@@ -53,7 +67,7 @@ class BittrexOrderer:
     @staticmethod
     def get_market_summary(market):
         response = BittrexOrderer.send_public_request("https://bittrex.com/api/v1.1/public/getmarketsummary?market=" + market)
-        return Utilities.construct_market_summary_from_json(response.json())
+        return Utilities.process_market_summaries(response.json())
 
     @staticmethod
     def place_order(order):
@@ -68,73 +82,74 @@ class BittrexOrderer:
         if order.sell_price < high:
             print "ERROR: "+order.market+" sell price ( "+str(order.sell_price)+" ) is less than high price ( "+ '%f' % (high) +" ) ! "
             return
-        r = BittrexOrderer.send_request("https://bittrex.com/api/v1.1/market/selllimit?apikey="+api_key+"&market="+order.market+"&quantity="+str(order.quantity)+"&rate="+str(order.sell_price))
+        url = "https://bittrex.com/api/v1.1/market/selllimit?apikey="+api_key+"&market="+order.market+"&quantity="+str(order.sell_quantity)+"&rate="+str(order.sell_price)
+        r = BittrexOrderer.send_request(url)
         r = r.json()
         print ("\n--------------------------------------------------------------------------------------------------"
            + "\nPlacing order.py on " + order.market
-           + "\n\t-\tQuantity:................ " + str(order.quantity / 2) + "\tof\t" + str(order.quantity)
-           + "\n\t-\tPrice:................... " + str(order.sell_price)
-           + "\n\t-\tReturn:.................. " + str(order.sell_total)
-           + "\n\t-\tCurrent Price:........... " + str('%f' % (high))
-           + "\n\t-\tDistance %:.............. " + str(round((high / order.sell_price) * 100, 2)) + "%"
-           + "\n--------------------------------------------------------------------------------------------------\n")
+           + "\n\t-\tQuantity:................ " + float_to_str(order.sell_quantity) + "\tof\t" + float_to_str(order.quantity)
+           + "\n\t-\tSell Price:.............. " + float_to_str(order.sell_price)
+           + "\n\t-\tReturn:.................. " + float_to_str(order.sell_price * order.quantity / 2)
+           + "\n\t-\tCurrent Price:........... " + float_to_str(high)
+           + "\n\t-\tCompletion Percentage:... " + str(round((high / order.sell_price) * 100, 2)) + "%"
+           + "\n--------------------------------------------------------------------------------------------------")
         if "success" in r:
-            if r['success'] == 'true':
-                print "            SUCCESS             \n"
-            elif 'message' in r:
-                print " * *      F A I L E D ! : " + r['message'] + "        * * \n"
+            if r['success'] or r['success']  == 'true':
+                print "                            ! ! ! ! !       SUCCESS         ! ! ! ! !                        "
+            elif 'message' in r and len(r['message']) != 0 and not str(r['message']).isspace():
+                print "                            * * * * *     F A I L E D !     ->  " + r['message'] + "         "
             else:
-                print " * *      F A I L E D !     * * \n"
+                print "                            * * * * *     F A I L E D !     * * * * *                            "
         else:
-            print " * *      F A I L E D !     * * \n"
+            print "                            * * * * *     F A I L E D !     * * * * *                            "
+        print url + "\n--------------------------------------------------------------------------------------------------\n"
 
 
 Splash.print_splash_screen()
-b_order = BittrexOrderer()
-api_key = b_order.read_api_key()
-secret_key = b_order.read_secret_key()
-requested_orders = Utilities.read_orders_from_file()
-nonce = str(int(time.time()))
-for holding_crypto in requested_orders:
-    print (holding_crypto.market + "\t|\t" + str(holding_crypto.quantity) + "\t|\t" + str(holding_crypto.buy_cost))
+api_key = BittrexOrderer.read_api_key()
+secret_key = BittrexOrderer.read_secret_key()
+requested_orders = Utilities.process_orders()
 
-print "Attempting to lookup orders"
-r = b_order.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+api_key)
-print r.status_code
-print r.json()
-open_orders = Utilities.read_orders_from_json(r.json())
+print "\nAttempting to lookup orders"
+r = BittrexOrderer.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+api_key)
+open_orders = Utilities.process_open_orders(r.json())
 
-print "\t Market |\t Quantity \t|\t Cost"
-for order in open_orders:
-    print (order.market + "\t|\t" + str(order.quantity) + "\t|\t" + str(order.buy_cost))
-# remove any crytos that have pending open orders
+#remove any crytos that have pending open orders
 requested_orders_minus_open_orders = copy.copy(requested_orders)
+count = 1
+print '\n'
 for holding_crypto in requested_orders:
     for order in open_orders:
         if holding_crypto.market == order.market:
-            print ("found match " + order.market)
+            print str(count) + ". Open order already exists on " + order.market + ".\tCancel this order if you want to renew it."
+            count = count + 1
             requested_orders_minus_open_orders.remove(holding_crypto)
             break
 
 
-r = b_order.send_request("https://bittrex.com/api/v1.1/account/getbalances?apikey="+api_key+"&nonce=")
-balances = Utilities.read_balances_from_json(r.json())
+r = BittrexOrderer.send_request("https://bittrex.com/api/v1.1/account/getbalances?apikey="+api_key+"&nonce=")
+balances = Utilities.process_balances(r.json())
 
 # remove any orders that we currently don't have any balance for
 orders_to_place = copy.copy(requested_orders_minus_open_orders)
+count = 1
 for order in requested_orders_minus_open_orders:
     if "USDT" in order.market.upper(): # not processing any orders bought with USDT
+        print str(count) + "Removing " + order.market
+        count = count + 1
         orders_to_place.remove(order)
         continue
-    crypto_exists = False
+
+    crypto_exists_with_balance = False
     for balance in balances:
         if order.market.split('-')[1] == balance.currency:
-            crypto_exists = True
-    if not crypto_exists:
+            crypto_exists_with_balance = True
+    if not crypto_exists_with_balance:
+        print str(count) + "Removing 0 balance crypto:" + order.market
+        count = count + 1
         orders_to_place.remove(order)
 
 for order in orders_to_place:
     BittrexOrderer.place_order(order)
-
 
 print "Exiting....."

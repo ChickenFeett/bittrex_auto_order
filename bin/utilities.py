@@ -1,18 +1,37 @@
 import csv
 import copy
-from crypto import Crypto
+from openorder import OpenOrder
 from crypto_balance import CryptoBalance
 from order import Order
 from definitions import Definition
 from market_summary import MarketSummary
+import json
 
+SELL_MARK_UP = 2  # 200% mark up
+SELL_AMOUNT_DIVIDER = 2 # Only sell half
 
 class Utilities:
     def __init__(self):
         pass
 
     @staticmethod
-    def read_orders_from_file():
+    def process_orders():
+        orders = []
+        with open('input\orders.json', 'r') as file:
+            jsonified = json.load(file)
+            rows_processed = 0
+            if (jsonified is None):
+                return None
+            for value in jsonified:
+                order = Utilities.create_order(value, rows_processed)
+                if order is not None:
+                    orders.append(order)
+                rows_processed = rows_processed + 1
+        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully"
+        return orders
+
+    @staticmethod
+    def process_historical_orders():
         orders = []
         with open('input\orders.csv', 'r') as csvfile:
             rows_processed = 0
@@ -20,12 +39,11 @@ class Utilities:
             if (csv_file is None):
                 return None
             for row in csv_file:
-                order = Utilities.create_order_from_csv(row, rows_processed)
+                order = Utilities.create_order_from_historical(row, rows_processed)
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        print str(rows_processed) + " records read"
-        print str(len(orders)) + " buy orders found"
+        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully"
         Utilities.combine_duplicates(orders)
         print str(len(orders)) + " unique buy orders"
         return orders
@@ -58,12 +76,14 @@ class Utilities:
     def create_combined_order(order1, order2):
         total_cost = order1.buy_cost + order2.buy_cost
         total_quantity = order1.quantity + order2.quantity
+        total_sell_quantity = order1.sell_quantity + order2.sell_quantity
         new_price_per_coin = total_cost / total_quantity
-        return Order(order1.order_id, order1.market, total_quantity, new_price_per_coin,
-                                total_cost)
+        return Order(order1.order_id, order1.market.split('-')[1], order1.market, total_quantity, total_sell_quantity, new_price_per_coin, total_cost, new_price_per_coin*2)
 
+    # Input: JSONified response from API get open orders
+    # Output: Array of orders
     @staticmethod
-    def read_orders_from_json(response):
+    def process_open_orders(response):
         orders = []
         rows_processed = 0
         if response is None:
@@ -72,16 +92,15 @@ class Utilities:
             return None
         results = response[Definition.api_key_result]
         for result in results:
-            order = Utilities.get_open_orders(result, rows_processed)
+            order = Utilities.create_open_order(result, rows_processed)
             if order is not None:
                 orders.append(order)
             rows_processed = rows_processed + 1
-        print str(rows_processed) + " records read"
-        print str(len(orders)) + " open orders found"
+        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully"
         return orders
 
     @staticmethod
-    def read_balances_from_json(response):
+    def process_balances(response):
         balances = []
         rows_processed = 0
         if response is None:
@@ -94,13 +113,12 @@ class Utilities:
             if order is not None and order.balance > 0:
                 balances.append(order)
             rows_processed = rows_processed + 1
-        print str(rows_processed) + " records read"
-        print str(len(balances)) + " open orders found"
+        print "\n" + str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully"
         return balances
 
     @staticmethod
     def get_balance(response, index):
-        if Utilities.valid_api_response(response, Definition.api_keys_balance):
+        if Utilities.dictionary_contains_keys(response, Definition.api_keys_balance):
             return CryptoBalance(index + 1,
                              response[Definition.api_key_Currency],
                              response[Definition.api_key_Balance],
@@ -110,7 +128,7 @@ class Utilities:
         return None
 
     @staticmethod
-    def construct_market_summary_from_json(response):
+    def process_market_summaries(response):
         if response is None:
             return None
         if Definition.api_key_result not in response:
@@ -123,18 +141,18 @@ class Utilities:
         return Utilities.create_market_summary(result)
 
     @staticmethod
-    def get_open_orders(response, index):
-        if Utilities.valid_api_response(response, Definition.api_keys_open_orders):
-            return Crypto(index + 1,
-                          response[Definition.api_key_Exchange],
-                          response[Definition.api_key_Quantity],
-                          response[Definition.api_key_Limit],
-                          response[Definition.api_key_Price])
+    def create_open_order(response, index):
+        if Utilities.dictionary_contains_keys(response, Definition.api_keys_open_orders):
+            return OpenOrder(index + 1,
+                             response[Definition.api_key_Exchange],
+                             response[Definition.api_key_Quantity],
+                             response[Definition.api_key_Limit],
+                             response[Definition.api_key_Price])
         return None
 
     @staticmethod
     def create_market_summary(response):
-        if Utilities.valid_api_response(response, Definition.api_keys_market_summary):
+        if Utilities.dictionary_contains_keys(response, Definition.api_keys_market_summary):
             return MarketSummary(response[Definition.api_key_MarketName],
                     response[Definition.api_key_High],
                     response[Definition.api_key_Low],
@@ -151,27 +169,36 @@ class Utilities:
         return None
 
     @staticmethod
-    def valid_api_response(response, expected_keys):
+    def dictionary_contains_keys(response, expected_keys):
         for key in expected_keys:
             if key not in response:
                 return False
         return True
 
     @staticmethod
-    def create_order_from_csv(row, index):
-        if Utilities.csv_row_is_valid_buy_order(row):
+    def create_order_from_historical(row, index):
+        if Utilities.dictionary_contains_keys(row, Definition.file_keys_historical_orders):
+            if len(row[Definition.csv_key_order_uuid]) == 0 or row[Definition.csv_key_order_uuid].isspace():
+                return None
             return Order(index + 1,
+                          row[Definition.csv_key_exchange].split('-')[1],
                           row[Definition.csv_key_exchange],
                           row[Definition.csv_key_quantity],
+                          float(row[Definition.csv_key_quantity])/SELL_AMOUNT_DIVIDER,
                           row[Definition.csv_key_limit],
-                          row[Definition.csv_key_price])
+                          row[Definition.csv_key_price],
+                          float(row[Definition.csv_key_limit])*SELL_MARK_UP)
         return None
 
     @staticmethod
-    def csv_row_is_valid_buy_order(row):
-        return (Definition.csv_key_exchange in row
-                and Definition.csv_key_type
-                and Definition.csv_key_quantity in row
-                and Definition.csv_key_limit in row
-                and Definition.csv_key_price in row
-                and row[Definition.csv_key_type] == Definition.LIMIT_BUY) # DO NOT PROCESS SELL ORDERS
+    def create_order(value, index):
+        if Utilities.dictionary_contains_keys(value, Definition.file_keys_orders):
+            return Order(index + 1,
+                         value[Definition.file_key_crypto],
+                         value[Definition.file_key_market],
+                         value[Definition.file_key_quantity],
+                         value[Definition.file_key_sell_quantity],
+                         value[Definition.file_key_buy_price],
+                         value[Definition.file_key_buy_cost],
+                         value[Definition.file_key_sell_price])
+        return None

@@ -1,4 +1,4 @@
-class Crypto:
+class OpenOrder:
     number = 0
     market = ''
     quantity = 0.0
