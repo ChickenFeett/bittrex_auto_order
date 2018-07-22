@@ -27,7 +27,7 @@ class Utilities:
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully"
+        print ("\n" + str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully")
         return orders
 
     @staticmethod
@@ -43,7 +43,7 @@ class Utilities:
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully"
+        print ("\n" + str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully")
         Utilities.combine_duplicates(orders)
         print str(len(orders)) + " unique buy orders"
         return orders
@@ -92,11 +92,11 @@ class Utilities:
             return None
         results = response[Definition.api_key_result]
         for result in results:
-            order = Utilities.create_open_order(result, rows_processed)
+            order = Utilities.create_open_order(result)
             if order is not None:
                 orders.append(order)
             rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully"
+        print ("\n" + str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully")
         return orders
 
     @staticmethod
@@ -113,7 +113,7 @@ class Utilities:
             if order is not None and order.balance > 0:
                 balances.append(order)
             rows_processed = rows_processed + 1
-        print "\n" + str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully"
+        print ("\n" + str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully")
         return balances
 
     @staticmethod
@@ -141,13 +141,26 @@ class Utilities:
         return Utilities.create_market_summary(result)
 
     @staticmethod
-    def create_open_order(response, index):
+    def create_open_order(response):
         if Utilities.dictionary_contains_keys(response, Definition.api_keys_open_orders):
-            return OpenOrder(index + 1,
-                             response[Definition.api_key_Exchange],
-                             response[Definition.api_key_Quantity],
-                             response[Definition.api_key_Limit],
-                             response[Definition.api_key_Price])
+            return OpenOrder(
+                response[Definition.api_key_OrderUuid],
+                response[Definition.api_key_QuantityRemaining],
+                response[Definition.api_key_IsConditional],
+                response[Definition.api_key_ImmediateOrCancel],
+                response[Definition.api_key_Uuid],
+                response[Definition.api_key_Exchange],
+                response[Definition.api_key_OrderType],
+                response[Definition.api_key_Price],
+                response[Definition.api_key_CommissionPaid],
+                response[Definition.api_key_Opened],
+                response[Definition.api_key_Limit],
+                response[Definition.api_key_Closed],
+                response[Definition.api_key_ConditionTarget],
+                response[Definition.api_key_CancelInitiated],
+                response[Definition.api_key_PricePerUnit],
+                response[Definition.api_key_Condition],
+                response[Definition.api_key_Quantity])
         return None
 
     @staticmethod
