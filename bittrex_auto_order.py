@@ -6,7 +6,9 @@ import hmac
 import hashlib
 import math
 import decimal
-from bin.utilities import Utilities
+import msvcrt
+from bin.utils import Utils
+from bin.configuration import Config
 from bin.user_interface import UserInterface
 from bin.user_requests import UserRequests
 
@@ -42,31 +44,44 @@ class BittrexOrderer:
         while not self.user_requests.system_exit:
             if self.user_requests.look_up_open_orders:
                 self.user_requests.look_up_open_orders = False
+                self.ui.disconnect()
                 self.print_detailed_open_order_stats()
+                print ("Press any key to continue...")
+                msvcrt.getch()
+                self.ui.run()
             time.sleep(0.25)  # make sure python doesn't want to kill itself
         sys.exit()
+
 
     def print_detailed_open_order_stats(self):
         open_orders = self.look_up_open_orders()
         for order in open_orders:
-            balance = self.get_balance(order.exchange)
+            currency = Utils.get_currency_from_exchange(order.exchange)
+            balance = self.get_balance(currency)
+            self.print_order_stats(order, balance)
+
 
     def get_balance(self, currency):
+        if currency is None:
+            return None
         r = self.send_request(
             "https://bittrex.com/api/v1.1/account/getbalance?apikey=" + self.api_key + "&currency=" + currency + "&nonce=")
-        balances = Utilities.process_balances(r.json())
+        balances = Utils.process_balances(r.json())
+        if type(balances) == list:
+            return balances[0]
+        return None
 
     def look_up_open_orders(self):
-        print ("\nAttempting to lookup orders")
+        Utils.log("\nAttempting to lookup orders", Config.LoggingModes.INFO)
         r = self.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+self.api_key)
-        return Utilities.process_open_orders(r.json())
+        return Utils.process_open_orders(r.json())
 
     @staticmethod
     def read_api_key():
         f = open('api_key', 'r')
         contents = f.read()
         if len(contents) != EXPECTED_API_KEY_LENGTH:
-            print ("Warning: API Key is not in the expected format. Key: " + str(contents) + " with length of: " + str(len(contents)))
+            Utils.log("API Key is not in the expected format. Key: " + str(contents) + " with length of: " + str(len(contents)), Config.LoggingModes.WARN)
         return contents
 
     @staticmethod
@@ -74,12 +89,12 @@ class BittrexOrderer:
         f = open('secret_key', 'r')
         contents = f.read()
         if len(contents) != EXPECTED_SECRET_KEY_LENGTH:
-            print ("Warning: Secret Key is not in the expected format. Key: " + str(contents) + " with length of: " + str(len(contents)))
+            Utils.log("Secret Key is not in the expected format. Key: " + str(contents) + " with length of: " + str(len(contents)), Config.LoggingModes.WARN)
         return contents
 
     @staticmethod
     def create_hash(secret_key, url):
-        return hmac.new(secret_key, url, hashlib.sha512).hexdigest()
+        return hmac.new(secret_key, url.encode(), hashlib.sha512).hexdigest()
 
 
     def send_request(self, url):
@@ -95,26 +110,26 @@ class BittrexOrderer:
     @staticmethod
     def get_market_summary(market):
         response = BittrexOrderer.send_public_request("https://bittrex.com/api/v1.1/public/getmarketsummary?market=" + market)
-        return Utilities.process_market_summaries(response.json())
+        return Utils.process_market_summaries(response.json())
 
 
     def place_order(self,order):
         market_summary = BittrexOrderer.get_market_summary(order.market)
         if market_summary is None:
-            print ("ERROR: Could not retrieve market summary for " + order.market)
+            Utils.log("Could not retrieve market summary for " + order.market, Config.LoggingModes.WARN)
             return
         high = float(market_summary.high)
         if high is None or math.isnan(high) or high == 0:
-            print ("ERROR: Could not retrieve high price from " + order.market)
+            Utils.log("Could not retrieve high price from " + order.market, Config.LoggingModes.WARN)
             return
         if order.sell_price < high:
-            print ("ERROR: "+order.market+" sell price ( "+str(order.sell_price)+" ) is less than high price ( "+ '%f' % (high) +" ) ! ")
+            Utils.log("ERROR: " + order.market +" sell price ( " + str(order.sell_price) +" ) is less than high price ( " + '%f' % (high) +" ) ! ", Config.LoggingModes.WARN)
             return
         url = "https://bittrex.com/api/v1.1/market/selllimit?apikey="+self.api_key+"&market="+order.market+"&quantity="+str(order.sell_quantity)+"&rate="+str(order.sell_price)
         r = self.send_request(url)
         r = r.json()
         print ("\n--------------------------------------------------------------------------------------------------"
-           + "\nPlacing order.py on " + order.market
+           + "\nPlacing order on " + order.market
            + "\n\t-\tQuantity:................ " + float_to_str(order.sell_quantity) + "\tof\t" + float_to_str(order.quantity)
            + "\n\t-\tSell Price:.............. " + float_to_str(order.sell_price)
            + "\n\t-\tReturn:.................. " + float_to_str(order.sell_price * order.quantity / 2)
@@ -134,21 +149,27 @@ class BittrexOrderer:
 
 
     def print_order_stats(self, open_order, balance):
+        if open_order is None:
+            Utils.log("Could not print stats - failed to retrieve order", Config.LoggingModes.ERROR)
+            return
+        if balance is None:
+            Utils.log("Could not print stats - failed to retrieve balance", Config.LoggingModes.ERROR)
+            return
         market_summary = BittrexOrderer.get_market_summary(open_order.exchange)
         if market_summary is None:
-            print ("ERROR: Could not retrieve market summary for " + open_order.exchange)
+            Utils.log("Could not retrieve market summary for " + open_order.exchange, Config.LoggingModes.ERROR)
             return
         high = float(market_summary.high)
         if high is None or math.isnan(high) or high == 0:
-            print ("ERROR: Could not retrieve high price for " + open_order.exchange)
+            Utils.log("Could not retrieve high price for " + open_order.exchange, Config.LoggingModes.ERROR)
             return
         print ("\n--------------------------------------------------------------------------------------------------"
-           + "\nPlacing order.py on " + open_order.exchange
+           + "\n Statistics of " + open_order.exchange
            + "\n\t-\tQuantity Remaining:...... " + float_to_str(open_order.quantity_remaining) + "\tof\t" + float_to_str(balance.balance)
-           + "\n\t-\tSell Price:.............. " + float_to_str(open_order.price)
-           + "\n\t-\tReturn:.................. " + float_to_str(open_order.price * open_order.quantity_remaining / 2)
+           + "\n\t-\tSell Price:.............. " + float_to_str(open_order.limit)
+           + "\n\t-\tReturn:.................. " + float_to_str(open_order.limit * open_order.quantity_remaining / 2)
            + "\n\t-\tCurrent Price:........... " + float_to_str(high)
-           + "\n\t-\tCompletion Percentage:... " + str(round((high / open_order.price) * 100, 2)) + "%"
+           + "\n\t-\tCompletion Percentage:... " + str(round((high / open_order.limit) * 100, 2)) + "%"
            + "\n--------------------------------------------------------------------------------------------------")
 
 

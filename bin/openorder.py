@@ -32,7 +32,7 @@ class OpenOrder:
         self.closed = str(closed)
         self.condition_target = str(condition_target)
         self.cancel_initiated = str(cancel_initiated)
-        self.price_per_unit = float(price_per_unit)
+        self.price_per_unit = str(price_per_unit)
         self.condition = str(condition)
         self.quantity = float(quantity)
         if (self.order_uuid is None or

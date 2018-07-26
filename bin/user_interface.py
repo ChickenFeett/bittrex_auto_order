@@ -1,11 +1,11 @@
 import keyboard, sys, os
-import msvcrt
 from bin.splash import Splash
 
 class UserInterface:
     def __init__(self, user_requests):
         self.user_requests = user_requests
 
+    disconnected = False
     lines_printed = 0
     option_index = 0
     MENU_OPTIONS = 6
@@ -99,6 +99,8 @@ class UserInterface:
 
     def call_back_yo(self, keybord_event):
         # Up key
+        if self.disconnected:
+            pass
         if keybord_event.scan_code == 72:
             if self.option_index > 0:
                 self.option_index = self.option_index - 1
@@ -128,9 +130,12 @@ class UserInterface:
 
     def run(self):
         os.system("cls")
-        #msvcrt.getch()
         Splash.print_splash_screen()
         self.main_menu()
+        self.disconnected = False
         keyboard.on_press_key('up', self.call_back_yo)
         keyboard.on_press_key('down', self.call_back_yo)
         keyboard.on_press_key('enter', self.call_back_yo)
+
+    def disconnect(self):
+        self.disconnected = True
