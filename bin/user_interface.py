@@ -1,101 +1,49 @@
 import keyboard, sys, os
 from bin.splash import Splash
+from .user_requests import Menus
 
 class UserInterface:
     def __init__(self, user_requests):
         self.user_requests = user_requests
 
+    menu_width = 77
+    menu_border = 4  # including margin
     disconnected = False
     lines_printed = 0
     option_index = 0
     MENU_OPTIONS = 6
     system_exit_requested = False
 
-    def main_menu(self):
-        if (self.option_index == 0):
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |   .-->  1. Read Orders From Bittrex                                     |")
-            print ("   \_/      2. Read Orders From File                                        |")
-            print ("   /        3. Enter Bittrex Command                                        |")
-            print ("  |         4. Enter API Key                                                |")
-            print ("  |         5. Enter Secret Key                                             |")
-            print ("  |         6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
-        elif (self.option_index == 1):
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |         1. Read Orders From Bittrex                                     |")
-            print ("   \_.--->  2. Read Orders From File                                        |")
-            print ("   /        3. Enter Bittrex Command                                        |")
-            print ("  |         4. Enter API Key                                                |")
-            print ("  |         5. Enter Secret Key                                             |")
-            print ("  |         6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
-        elif (self.option_index == 2):
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |         1. Read Orders From Bittrex                                     |")
-            print ("   \_       2. Read Orders From File                                        |")
-            print ("   / `--->  3. Enter Bittrex Command                                        |")
-            print ("  |         4. Enter API Key                                                |")
-            print ("  |         5. Enter Secret Key                                             |")
-            print ("  |         6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
-        elif (self.option_index == 3):
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |         1. Read Orders From Bittrex                                     |")
-            print ("   \_       2. Read Orders From File                                        |")
-            print ("   / \      3. Enter Bittrex Command                                        |")
-            print ("  |   `-->  4. Enter API Key                                                |")
-            print ("  |         5. Enter Secret Key                                             |")
-            print ("  |         6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
-        elif (self.option_index == 4):
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |         1. Read Orders From Bittrex                                     |")
-            print ("   \_       2. Read Orders From File                                        |")
-            print ("   / \      3. Enter Bittrex Command                                        |")
-            print ("  |   \     4. Enter API Key                                                |")
-            print ("  |    `->  5. Enter Secret Key                                             |")
-            print ("  |         6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
+    def print_title(self, title):
+        spaces = ((self.menu_width - self.menu_border - len(title)) / 2) * ' '
+        title_row = "  |"+spaces+title+spaces+"|"
+        print ("  ,_________________________________________________________________________,")
+        print ("  |                                                                         |")
+        print (title_row)
+        print ("  |_________________________________________________________________________|")
+        print ("  |                                                                         |")
+
+    def print_item(self, menu, item, index):
+        if menu.selected == item:  # currently selected
+            value = "  |   C==>  " + str(index) + ". " + item.text
         else:
-            print ("  ,_________________________________________________________________________,")
-            print ("  |                                                                         |")
-            print ("  |                        M  A  I  N     M  E  N  U                        |")
-            print ("  |_________________________________________________________________________|")
-            print ("  |                                                                         |")
-            print ("  |         1. Read Orders From Bittrex                                     |")
-            print ("   \        2. Read Orders From File                                        |")
-            print ("   /\       3. Enter Bittrex Command                                        |")
-            print ("  |  \      4. Enter API Key                                                |")
-            print ("  |   \     5. Enter Secret Key                                             |")
-            print ("  |    `->  6. Exit                                                         |")
-            print ("  |_________________________________________________________________________|")
-        self.lines_printed = 10
+            value = "  |         " + str(index) + ". " + item.text
+        spaces = (self.menu_width - len(value) - 1) * ' '  # - 1 for ending border bracket, "|"
+        print (value + spaces + '|')
+
+    def print_menu(self, menu):
+        Menus.open_menu = menu
+        self.print_title(menu.title)
+        index = 1
+        for item in menu.items:
+            self.print_item(menu, item, index)
+            index = index + 1
+        print ("  |_________________________________________________________________________|")
 
     def redraw_main_menu(self):
         os.system("cls")
         Splash.print_splash_screen()
-        self.main_menu()
+        self.print_menu(Menus.main_menu)
 
     def call_back_yo(self, keybord_event):
         # Up key
@@ -131,7 +79,7 @@ class UserInterface:
     def run(self):
         os.system("cls")
         Splash.print_splash_screen()
-        self.main_menu()
+        self.print_menu(Menus.main_menu)
         self.disconnected = False
         keyboard.on_press_key('up', self.call_back_yo)
         keyboard.on_press_key('down', self.call_back_yo)

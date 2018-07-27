@@ -10,7 +10,7 @@ import msvcrt
 from bin.utils import Utils
 from bin.configuration import Config
 from bin.user_interface import UserInterface
-from bin.user_requests import UserRequests
+from bin.user_requests import Menus
 
 EXPECTED_API_KEY_LENGTH = 32
 EXPECTED_SECRET_KEY_LENGTH = 32
@@ -34,16 +34,16 @@ class BittrexOrderer:
 
     def __init__(self):
         print ("Initializing")
-        self.user_requests = UserRequests()
+        self.user_requests = Menus()
         self.ui = UserInterface(self.user_requests)
         self.api_key = BittrexOrderer.read_api_key()
         self.secret_key = BittrexOrderer.read_secret_key()
 
     def run(self):
         self.ui.run()
-        while not self.user_requests.system_exit:
-            if self.user_requests.look_up_open_orders:
-                self.user_requests.look_up_open_orders = False
+        while not self.user_requests.main_menu.items["Exit"]:
+            if self.user_requests.main_menu["_items_"]["Print Open Orders"]:
+                self.user_requests.main_menu["_items_"]["Print Open Orders"] = False
                 self.ui.disconnect()
                 self.print_detailed_open_order_stats()
                 print ("Press any key to continue...")
