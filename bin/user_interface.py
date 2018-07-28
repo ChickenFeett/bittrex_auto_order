@@ -11,6 +11,7 @@ class UserInterface:
         keyboard.on_press_key('down', self.call_back_yo)
         keyboard.on_press_key('enter', self.call_back_yo)
         self.menus = menus
+        self.current_menu = menus.current_menu
 
     menu_width = 77
     menu_border = 4  # including margin
@@ -47,9 +48,6 @@ class UserInterface:
                 index = index + 1
         print ("  |_________________________________________________________________________|")
 
-    def redraw_main_menu(self):
-        self.redraw(self.menus.main_menu)
-
     def call_back_yo(self, keybord_event):
         # Up key
         if self.disconnected:
@@ -58,29 +56,30 @@ class UserInterface:
         if not lock.acquire(False):  # attempt non-blocking lock
             return  # already processing
         if keybord_event.scan_code == 72:
-            if self.menus.current_menu.selected > 0:
-                self.menus.current_menu.selected = self.menus.current_menu.selected - 1
-                self.redraw_main_menu()
+            if self.current_menu.selected > 0:
+                self.current_menu.selected = self.current_menu.selected - 1
+                self.draw()
         # Down key
         if keybord_event.scan_code == 80:
-            if self.menus.current_menu.selected < len(self.menus.current_menu.items)/2 - 1:
-                self.menus.current_menu.selected = self.menus.current_menu.selected + 1
-                self.redraw_main_menu()
+            if self.current_menu.selected < len(self.current_menu.items)/2 - 1:
+                self.current_menu.selected = self.current_menu.selected + 1
+                self.draw()
         # Down key
         if keybord_event.scan_code == 28:
-            self.menus.current_menu.items[self.menus.current_menu.selected].is_activated = True
+            self.current_menu.items[self.current_menu.selected].callback()
         lock.release()  # release lock
 
-    def run(self):
-        self.redraw(self.menus.main_menu)
+    def run(self, menu):
+        self.current_menu = menu
+        self.draw()
         self.disconnected = False
 
-    def redraw(self, menu):
+    def draw(self):
         lock = threading.Lock()
         if lock.acquire(False):  # attempt non-blocking lock
             os.system("cls")
             Splash.print_splash_screen()
-            self.print_menu(menu)
+            self.print_menu(self.current_menu)
             lock.release()  # release lock
 
     def disconnect(self):

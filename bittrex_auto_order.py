@@ -7,6 +7,7 @@ import hashlib
 import math
 import decimal
 import msvcrt
+import threading
 from bin.utils import Utils
 from bin.configuration import Config
 from bin.user_interface import UserInterface
@@ -34,30 +35,44 @@ class BittrexOrderer:
 
     def __init__(self):
         print ("Initializing")
+        self.exit_lock = threading.Lock()
         Config.logging = Config.LoggingModes.OFF
         self.menus = Menus()
+        self.initialize_menu_item_callback_functions(self.menus)
         self.ui = UserInterface(self.menus)
         self.api_key = BittrexOrderer.read_api_key()
         self.secret_key = BittrexOrderer.read_secret_key()
 
     def run(self):
-        self.ui.run()
-        while not self.menus.main_menu.items["Exit"].is_activated:
-            if self.menus.main_menu.items["Print Open Orders"].is_activated:
-                self.menus.main_menu.items["Print Open Orders"].is_activated = False
-                self.ui.disconnect()
-                os.system("cls")
-                self.print_detailed_open_order_stats()
-                print ("Press any key to continue...")
-                Utils.wait_for_any_key()
-                self.ui.run()
-            time.sleep(0.25)  # make sure python doesn't want to kill itself
-
+        self.ui.run(
+            self.menus.main_menu)
+        self.exit_lock.acquire() # acquire lock for the first time
+        # try to acquire again - will only be released when user requests to exit application
+        self.exit_lock.acquire()
         os.system("cls")
         print("See you next time!")
         sys.exit()
 
+    def initialize_menu_item_callback_functions(self, menus):
+        menus.main_menu.items["Orders"].callback = lambda: self.on_orders_activated()
+        menus.orders_menu.items["Back"].callback = lambda: self.on_orders_back_activated()
+        menus.orders_menu.items["Print Open Orders"].callback = lambda: self.on_print_open_orders_activated()
+        menus.main_menu.items["Exit"].callback = lambda: self.on_exit_activated()
 
+    def on_orders_activated(self):
+        self.ui.run(self.menus.orders_menu)
+
+    def on_orders_back_activated(self):
+        self.ui.run(self.menus.main_menu)
+
+    def on_print_open_orders_activated(self):
+        self.print_detailed_open_order_stats()
+        print("Press any key to continue...")
+        Utils.wait_for_any_key()
+        self.ui.run(self.menus.orders_menu)
+
+    def on_exit_activated(self):
+        self.exit_lock.release() # allow exit
 
     def print_detailed_open_order_stats(self):
         open_orders = self.look_up_open_orders()
@@ -100,7 +115,7 @@ class BittrexOrderer:
 
     @staticmethod
     def create_hash(secret_key, url):
-        return hmac.new(secret_key, url.encode(), hashlib.sha512).hexdigest()
+        return hmac.new(bytearray(source=secret_key, encoding='ASCII'), url.encode(), hashlib.sha512).hexdigest()
 
     def send_request(self, url):
         url = url + "&nonce=" + str(int(time.time()))
