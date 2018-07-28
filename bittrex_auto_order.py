@@ -1,6 +1,6 @@
 import sys
 import time
-import copy
+import os
 import requests
 import hmac
 import hashlib
@@ -10,7 +10,7 @@ import msvcrt
 from bin.utils import Utils
 from bin.configuration import Config
 from bin.user_interface import UserInterface
-from bin.user_requests import Menus
+from bin.menus import Menus
 
 EXPECTED_API_KEY_LENGTH = 32
 EXPECTED_SECRET_KEY_LENGTH = 32
@@ -34,23 +34,29 @@ class BittrexOrderer:
 
     def __init__(self):
         print ("Initializing")
-        self.user_requests = Menus()
-        self.ui = UserInterface(self.user_requests)
+        Config.logging = Config.LoggingModes.OFF
+        self.menus = Menus()
+        self.ui = UserInterface(self.menus)
         self.api_key = BittrexOrderer.read_api_key()
         self.secret_key = BittrexOrderer.read_secret_key()
 
     def run(self):
         self.ui.run()
-        while not self.user_requests.main_menu.items["Exit"]:
-            if self.user_requests.main_menu["_items_"]["Print Open Orders"]:
-                self.user_requests.main_menu["_items_"]["Print Open Orders"] = False
+        while not self.menus.main_menu.items["Exit"].is_activated:
+            if self.menus.main_menu.items["Print Open Orders"].is_activated:
+                self.menus.main_menu.items["Print Open Orders"].is_activated = False
                 self.ui.disconnect()
+                os.system("cls")
                 self.print_detailed_open_order_stats()
                 print ("Press any key to continue...")
-                msvcrt.getch()
+                Utils.wait_for_any_key()
                 self.ui.run()
             time.sleep(0.25)  # make sure python doesn't want to kill itself
+
+        os.system("cls")
+        print("See you next time!")
         sys.exit()
+
 
 
     def print_detailed_open_order_stats(self):
@@ -95,7 +101,6 @@ class BittrexOrderer:
     @staticmethod
     def create_hash(secret_key, url):
         return hmac.new(secret_key, url.encode(), hashlib.sha512).hexdigest()
-
 
     def send_request(self, url):
         url = url + "&nonce=" + str(int(time.time()))

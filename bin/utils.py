@@ -6,6 +6,7 @@ from .crypto_balance import CryptoBalance
 from .order import Order
 from .definitions import Definition
 from .market_summary import MarketSummary
+import msvcrt
 import json
 
 SELL_MARK_UP = 2  # 200% mark up
@@ -14,6 +15,12 @@ SELL_AMOUNT_DIVIDER = 2 # Only sell half
 class Utils:
     def __init__(self):
         pass
+
+    @staticmethod
+    def wait_for_any_key():
+        while msvcrt.kbhit():  # remove any keys in buffer
+            msvcrt.getch()
+        msvcrt.getch()  # then wait for key press
 
     @staticmethod
     def get_currency_from_exchange(exchange):
@@ -35,7 +42,7 @@ class Utils:
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        Utils.log ("\n" + str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully", Config.LoggingModes.INFO)
+        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully", Config.LoggingModes.INFO)
         return orders
 
     @staticmethod
@@ -51,9 +58,9 @@ class Utils:
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        Utils.log ("\n" + str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully", Config.LoggingModes.INFO)
+        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully", Config.LoggingModes.INFO)
         Utils.combine_duplicates(orders)
-        Utils.log (str(len(orders)) + " unique buy orders", Config.LoggingModes.INFO)
+        Utils.log(str(len(orders)) + " unique buy orders", Config.LoggingModes.INFO)
         return orders
 
     @staticmethod
@@ -106,7 +113,7 @@ class Utils:
             if order is not None:
                 orders.append(order)
             rows_processed = rows_processed + 1
-        Utils.log("\n" + str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully", Config.LoggingModes.INFO)
+        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully", Config.LoggingModes.INFO)
         return orders
 
     @staticmethod
@@ -127,7 +134,7 @@ class Utils:
             if order is not None and order.balance > 0:
                 balances.append(order)
             rows_processed = rows_processed + 1
-        Utils.log("\n" + str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully", Config.LoggingModes.INFO)
+        Utils.log(str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully", Config.LoggingModes.INFO)
         return balances
 
     @staticmethod
@@ -232,25 +239,25 @@ class Utils:
 
     @staticmethod
     def log(msg, mode):
-        if Config.logging == Config.LoggingModes.OFF: # 0
+        if Config.logging == Config.LoggingModes.OFF:  # 0
             return
-        elif Config.logging == Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL: # 1
+        elif Config.logging == Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
             print("FATAL - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.ERROR and mode <= Config.LoggingModes.ERROR: # 2
+        elif Config.logging == Config.LoggingModes.ERROR and mode <= Config.LoggingModes.ERROR:  # 2
             print("ERROR - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.WARN and mode <= Config.LoggingModes.WARN: # 3
+        elif Config.logging == Config.LoggingModes.WARN and mode <= Config.LoggingModes.WARN:  # 3
             print("WARNING - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.INFO and mode <= Config.LoggingModes.INFO: # 4
+        elif Config.logging == Config.LoggingModes.INFO and mode <= Config.LoggingModes.INFO:  # 4
             print("INFO - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.DEBUG and mode <= Config.LoggingModes.DEBUG: # 5
+        elif Config.logging == Config.LoggingModes.DEBUG and mode <= Config.LoggingModes.DEBUG:  # 5
             print("DEBUG - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.TRACE and mode <= Config.LoggingModes.TRACE: # 6
+        elif Config.logging == Config.LoggingModes.TRACE and mode <= Config.LoggingModes.TRACE:  # 6
             print("TRACE - " + msg)
             return
-        else: # 6
+        else:  # 7
             print("ALL - " + msg)
