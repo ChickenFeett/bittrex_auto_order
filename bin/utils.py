@@ -11,6 +11,7 @@ import json
 
 SELL_MARK_UP = 2  # 200% mark up
 SELL_AMOUNT_DIVIDER = 2 # Only sell half
+APPLICATION_LOG_FILE_PATH = "data\\bao.log"
 
 class Utils:
     def __init__(self):
@@ -238,7 +239,8 @@ class Utils:
         return None
 
     @staticmethod
-    def log(msg, mode):
+    def log(msg, mode, ex=None):
+        Utils.log_to_file(msg, mode, ex)
         if Config.logging == Config.LoggingModes.OFF:  # 0
             return
         elif Config.logging == Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
@@ -261,3 +263,18 @@ class Utils:
             return
         else:  # 7
             print("ALL - " + msg)
+
+    @staticmethod
+    def log_to_file(msg, mode, ex):
+        try:
+            with open(APPLICATION_LOG_FILE_PATH) as f:
+                if type(ex) is str:
+                    ex = '\n' + ex
+                else:
+                    ex = ''
+                f.write(str(mode) + ": " + str(msg) + str(ex))
+                f.close()
+        except Exception, logging_exception:
+            if type(ex) is Exception:
+                raise ex # raise original exception, if present - it's the reason we're here anyway.
+            raise logging_exception # otherwise re-raise most current exception

@@ -5,3 +5,5 @@ orders.csv
 *.csv
 .idea
 input/*
+venv
+venv/*

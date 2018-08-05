@@ -7,9 +7,9 @@ from .menus import Menus
 
 class UserInterface:
     def __init__(self, menus):
-        keyboard.on_press_key('up', self.call_back_yo)
-        keyboard.on_press_key('down', self.call_back_yo)
-        keyboard.on_press_key('enter', self.call_back_yo)
+        keyboard.on_press_key('up', self.handle_key_press)
+        keyboard.on_press_key('down', self.handle_key_press)
+        keyboard.on_press_key('enter', self.handle_key_press)
         self.menus = menus
         self.current_menu = menus.current_menu
 
@@ -48,7 +48,7 @@ class UserInterface:
                 index = index + 1
         print ("  |_________________________________________________________________________|")
 
-    def call_back_yo(self, keybord_event):
+    def handle_key_press(self, keybord_event):
         # Up key
         if self.disconnected:
             return

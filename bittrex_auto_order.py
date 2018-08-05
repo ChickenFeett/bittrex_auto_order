@@ -193,50 +193,9 @@ class BittrexOrderer:
            + "\n--------------------------------------------------------------------------------------------------")
 
 
-
-bittrex_orderer = BittrexOrderer()
-bittrex_orderer.run()
-#
-# print ("\nAttempting to lookup orders"
-# r = BittrexOrderer.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+api_key)
-# open_orders = Utilities.process_open_orders(r.json())
-#
-# #remove any crytos that have pending open orders
-# requested_orders_minus_open_orders = copy.copy(requested_orders)
-# count = 1
-# print '\n'
-# for holding_crypto in requested_orders:
-#     for order in open_orders:
-#         if holding_crypto.market == order.market:
-#             print str(count) + ". Open order already exists on " + order.market + ".\tCancel this order if you want to renew it."
-#             count = count + 1
-#             requested_orders_minus_open_orders.remove(holding_crypto)
-#             break
-#
-#
-# r = BittrexOrderer.send_request("https://bittrex.com/api/v1.1/account/getbalances?apikey="+api_key+"&nonce=")
-# balances = Utilities.process_balances(r.json())
-#
-# # remove any orders that we currently don't have any balance for
-# orders_to_place = copy.copy(requested_orders_minus_open_orders)
-# count = 1
-# for order in requested_orders_minus_open_orders:
-#     if "USDT" in order.market.upper(): # not processing any orders bought with USDT
-#         print str(count) + "Removing " + order.market
-#         count = count + 1
-#         orders_to_place.remove(order)
-#         continue
-#
-#     crypto_exists_with_balance = False
-#     for balance in balances:
-#         if order.market.split('-')[1] == balance.currency:
-#             crypto_exists_with_balance = True
-#     if not crypto_exists_with_balance:
-#         print str(count) + "Removing 0 balance crypto:" + order.market
-#         count = count + 1
-#         orders_to_place.remove(order)
-#
-# for order in orders_to_place:
-#     BittrexOrderer.place_order(order)
-#
-# print ("Exiting....."
+try:
+    bittrex_orderer = BittrexOrderer()
+    bittrex_orderer.run()
+except Exception, ex:
+    Utils.log("Fatal error", Config.LoggingModes.FATAL, ex)
+    sys.exit()  # let's get the hell outta here!
