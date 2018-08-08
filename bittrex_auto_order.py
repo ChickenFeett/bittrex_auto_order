@@ -57,6 +57,8 @@ class BittrexOrderer:
         menus.main_menu.items["Orders"].callback = lambda: self.on_orders_activated()
         menus.orders_menu.items["Back"].callback = lambda: self.on_orders_back_activated()
         menus.orders_menu.items["Print Open Orders"].callback = lambda: self.on_print_open_orders_activated()
+        menus.orders_menu.items["Print Balances"].callback = lambda: self.on_print_balances_activated()
+        menus.orders_menu.items["Place Orders"].callback = lambda: self.on_place_orders_activated()
         menus.main_menu.items["Exit"].callback = lambda: self.on_exit_activated()
 
     def on_orders_activated(self):
@@ -71,16 +73,43 @@ class BittrexOrderer:
         Utils.wait_for_any_key()
         self.ui.run(self.menus.orders_menu)
 
+    def on_print_balances_activated(self):
+        self.print_detailed_balance_stats()
+        print("Press any key to continue...")
+        Utils.wait_for_any_key()
+        self.ui.run(self.menus.orders_menu)
+
+    def on_place_orders_activated(self):
+        # TODO - do this function
+        print("Press any key to continue...")
+        Utils.wait_for_any_key()
+        self.ui.run(self.menus.orders_menu)
+
     def on_exit_activated(self):
         self.exit_lock.release() # allow exit
 
     def print_detailed_open_order_stats(self):
         open_orders = self.look_up_open_orders()
+        if open_orders is None:
+            Utils.log("Failed to retrieve open orders", Config.LoggingModes.ERROR)
+            return
         for order in open_orders:
             currency = Utils.get_currency_from_exchange(order.exchange)
             balance = self.get_balance(currency)
             self.print_order_stats(order, balance)
 
+    def print_detailed_balance_stats(self):
+        balances = self.get_balances()
+        if balances is None:
+            Utils.log("Failed to retrieve balances", Config.LoggingModes.ERROR)
+            return
+        for balance in balances:
+            # TODO - Make this print pretty stats
+            print (balance)
+
+    def get_balances(self):
+        # TODO - implement this function
+        return None
 
     def get_balance(self, currency):
         if currency is None:
@@ -191,7 +220,6 @@ class BittrexOrderer:
            + "\n\t-\tCurrent Price:........... " + float_to_str(high)
            + "\n\t-\tCompletion Percentage:... " + str(round((high / open_order.limit) * 100, 2)) + "%"
            + "\n--------------------------------------------------------------------------------------------------")
-
 
 try:
     bittrex_orderer = BittrexOrderer()

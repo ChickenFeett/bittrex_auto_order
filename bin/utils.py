@@ -267,7 +267,7 @@ class Utils:
     @staticmethod
     def log_to_file(msg, mode, ex):
         try:
-            with open(APPLICATION_LOG_FILE_PATH) as f:
+            with open(APPLICATION_LOG_FILE_PATH, 'w+') as f:
                 if type(ex) is str:
                     ex = '\n' + ex
                 else:
