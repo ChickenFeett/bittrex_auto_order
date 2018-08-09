@@ -6,10 +6,14 @@ import math
 from bin.utils import Utils
 from bin.configuration import Config
 
-
 EXPECTED_API_KEY_LENGTH = 32
 EXPECTED_SECRET_KEY_LENGTH = 32
-class API_Controller:
+
+
+class ApiController:
+    def __init__(self):
+        self.api_key = ApiController.read_api_key()
+        self.secret_key = ApiController.read_secret_key()
 
     def print_detailed_open_order_stats(self):
         open_orders = self.look_up_open_orders()
@@ -17,7 +21,6 @@ class API_Controller:
             currency = Utils.get_currency_from_exchange(order.exchange)
             balance = self.get_balance(currency)
             self.print_order_stats(order, balance)
-
 
     def get_balance(self, currency):
         if currency is None:
@@ -56,7 +59,7 @@ class API_Controller:
 
     def send_request(self, url):
         url = url + "&nonce=" + str(int(time.time()))
-        hmac_hash = API_Controller.create_hash(self.secret_key, url)
+        hmac_hash = ApiController.create_hash(self.secret_key, url)
         headers = {'apisign': hmac_hash}
         return requests.get(url, headers=headers)
 
@@ -66,12 +69,12 @@ class API_Controller:
 
     @staticmethod
     def get_market_summary(market):
-        response = API_Controller.send_public_request("https://bittrex.com/api/v1.1/public/getmarketsummary?market=" + market)
+        response = ApiController.send_public_request("https://bittrex.com/api/v1.1/public/getmarketsummary?market=" + market)
         return Utils.process_market_summaries(response.json())
 
 
     def place_order(self,order):
-        market_summary = API_Controller.get_market_summary(order.market)
+        market_summary = ApiController.get_market_summary(order.market)
         if market_summary is None:
             Utils.log("Could not retrieve market summary for " + order.market, Config.LoggingModes.WARN)
             return
@@ -104,7 +107,6 @@ class API_Controller:
             print ("                            * * * * *     F A I L E D !     * * * * *                            ")
         print (url + "\n--------------------------------------------------------------------------------------------------\n")
 
-
     def print_order_stats(self, open_order, balance):
         if open_order is None:
             Utils.log("Could not print stats - failed to retrieve order", Config.LoggingModes.ERROR)
@@ -112,7 +114,7 @@ class API_Controller:
         if balance is None:
             Utils.log("Could not print stats - failed to retrieve balance", Config.LoggingModes.ERROR)
             return
-        market_summary = API_Controller.get_market_summary(open_order.exchange)
+        market_summary = ApiController.get_market_summary(open_order.exchange)
         if market_summary is None:
             Utils.log("Could not retrieve market summary for " + open_order.exchange, Config.LoggingModes.ERROR)
             return

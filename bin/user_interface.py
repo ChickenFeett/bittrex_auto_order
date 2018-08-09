@@ -1,5 +1,5 @@
 import keyboard
-import sys
+import msvcrt
 import os
 import threading
 from bin.splash import Splash
@@ -85,3 +85,9 @@ class UserInterface:
 
     def disconnect(self):
         self.disconnected = True
+
+    @staticmethod
+    def wait_for_any_key():
+        while msvcrt.kbhit():  # remove any keys in buffer
+            msvcrt.getch()
+        msvcrt.getch()  # then wait for key press

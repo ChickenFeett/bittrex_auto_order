@@ -6,8 +6,8 @@ from .crypto_balance import CryptoBalance
 from .order import Order
 from .definitions import Definition
 from .market_summary import MarketSummary
-import msvcrt
 import json
+import decimal
 
 SELL_MARK_UP = 2  # 200% mark up
 SELL_AMOUNT_DIVIDER = 2 # Only sell half
@@ -16,11 +16,11 @@ class Utils:
     def __init__(self):
         pass
 
-    @staticmethod
-    def wait_for_any_key():
-        while msvcrt.kbhit():  # remove any keys in buffer
-            msvcrt.getch()
-        msvcrt.getch()  # then wait for key press
+    def float_to_str(input_to_parse):
+        ctx = decimal.Context()
+        ctx.prec = 20
+        d1 = ctx.create_decimal(repr(input_to_parse))
+        return format(d1, 'f')
 
     @staticmethod
     def get_currency_from_exchange(exchange):
