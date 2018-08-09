@@ -1,18 +1,38 @@
 import csv
-import copy
-from openorder import OpenOrder
-from crypto_balance import CryptoBalance
-from order import Order
-from definitions import Definition
-from market_summary import MarketSummary
+import os
+
+import datetime
+
+from .openorder import OpenOrder
+from .configuration import Config
+from .crypto_balance import CryptoBalance
+from .order import Order
+from .definitions import Definition
+from .market_summary import MarketSummary
 import json
+import decimal
 
 SELL_MARK_UP = 2  # 200% mark up
 SELL_AMOUNT_DIVIDER = 2 # Only sell half
+APPLICATION_LOG_FILE_PATH = "data\\bao.log"
 
-class Utilities:
+class Utils:
     def __init__(self):
         pass
+
+    @staticmethod
+    def float_to_str(input_to_parse):
+        ctx = decimal.Context()
+        ctx.prec = 20
+        d1 = ctx.create_decimal(repr(input_to_parse))
+        return format(d1, 'f')
+
+    @staticmethod
+    def get_currency_from_exchange(exchange):
+        try:
+            return exchange.split('-')[1]
+        except IndexError:
+            return None
 
     @staticmethod
     def process_orders():
@@ -23,11 +43,11 @@ class Utilities:
             if (jsonified is None):
                 return None
             for value in jsonified:
-                order = Utilities.create_order(value, rows_processed)
+                order = Utils.create_order(value, rows_processed)
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully"
+        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " orders processed successfully", Config.LoggingModes.INFO)
         return orders
 
     @staticmethod
@@ -39,13 +59,13 @@ class Utilities:
             if (csv_file is None):
                 return None
             for row in csv_file:
-                order = Utilities.create_order_from_historical(row, rows_processed)
+                order = Utils.create_order_from_historical(row, rows_processed)
                 if order is not None:
                     orders.append(order)
                 rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully"
-        Utilities.combine_duplicates(orders)
-        print str(len(orders)) + " unique buy orders"
+        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " historical orders processed successfully", Config.LoggingModes.INFO)
+        Utils.combine_duplicates(orders)
+        Utils.log(str(len(orders)) + " unique buy orders", Config.LoggingModes.INFO)
         return orders
 
     @staticmethod
@@ -59,17 +79,17 @@ class Utilities:
         for i in range(index, len(orders)):
             if selected_element.market != orders[i].market:
                 continue
-            combined_order = Utilities.create_combined_order(selected_element, orders[i])
+            combined_order = Utils.create_combined_order(selected_element, orders[i])
             orders.remove(orders[i])
             orders.append(combined_order)
-            new_orders = Utilities.combine_duplicates(orders, index)
+            new_orders = Utils.combine_duplicates(orders, index)
             duplicate = True
             break
         if duplicate:
-            return Utilities.combine_duplicates(new_orders, index)
+            return Utils.combine_duplicates(new_orders, index)
         else:
             orders.insert(index, selected_element)
-            return Utilities.combine_duplicates(orders, index + 1)
+            return Utils.combine_duplicates(orders, index + 1)
 
 
     @staticmethod
@@ -91,12 +111,16 @@ class Utilities:
         if Definition.api_key_result not in response:
             return None
         results = response[Definition.api_key_result]
+        if results is None:
+            return None
         for result in results:
-            order = Utilities.create_open_order(result, rows_processed)
+            order = Utils.create_open_order(result)
+            rows_processed = rows_processed + 1
             if order is not None:
                 orders.append(order)
-            rows_processed = rows_processed + 1
-        print "\n" + str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully"
+                Utils.log(str(rows_processed) + " of " + str(len(results)) + ". " + order.exchange + " open order processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Open order processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
         return orders
 
     @staticmethod
@@ -108,17 +132,23 @@ class Utilities:
         if Definition.api_key_result not in response:
             return None
         results = response[Definition.api_key_result]
+        if results is None:
+            return None
+        if type(results) == dict:
+            results = [results]
         for result in results:
-            order = Utilities.get_balance(result, rows_processed)
-            if order is not None and order.balance > 0:
-                balances.append(order)
+            balance = Utils.get_balance(result, rows_processed)
+            if balance is not None and balance.balance > 0:
+                balances.append(balance)
+                Utils.log(balance.currency + " balance processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Balance processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
             rows_processed = rows_processed + 1
-        print "\n" + str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully"
         return balances
 
     @staticmethod
     def get_balance(response, index):
-        if Utilities.dictionary_contains_keys(response, Definition.api_keys_balance):
+        if Utils.dictionary_contains_keys(response, Definition.api_keys_balance):
             return CryptoBalance(index + 1,
                              response[Definition.api_key_Currency],
                              response[Definition.api_key_Balance],
@@ -138,21 +168,34 @@ class Utilities:
             result = result[0]
         if result is None:
             return None
-        return Utilities.create_market_summary(result)
+        return Utils.create_market_summary(result)
 
     @staticmethod
-    def create_open_order(response, index):
-        if Utilities.dictionary_contains_keys(response, Definition.api_keys_open_orders):
-            return OpenOrder(index + 1,
-                             response[Definition.api_key_Exchange],
-                             response[Definition.api_key_Quantity],
-                             response[Definition.api_key_Limit],
-                             response[Definition.api_key_Price])
+    def create_open_order(response):
+        if Utils.dictionary_contains_keys(response, Definition.api_keys_open_orders):
+            return OpenOrder(
+                response[Definition.api_key_OrderUuid],
+                response[Definition.api_key_QuantityRemaining],
+                response[Definition.api_key_IsConditional],
+                response[Definition.api_key_ImmediateOrCancel],
+                response[Definition.api_key_Uuid],
+                response[Definition.api_key_Exchange],
+                response[Definition.api_key_OrderType],
+                response[Definition.api_key_Price],
+                response[Definition.api_key_CommissionPaid],
+                response[Definition.api_key_Opened],
+                response[Definition.api_key_Limit],
+                response[Definition.api_key_Closed],
+                response[Definition.api_key_ConditionTarget],
+                response[Definition.api_key_CancelInitiated],
+                response[Definition.api_key_PricePerUnit],
+                response[Definition.api_key_Condition],
+                response[Definition.api_key_Quantity])
         return None
 
     @staticmethod
     def create_market_summary(response):
-        if Utilities.dictionary_contains_keys(response, Definition.api_keys_market_summary):
+        if Utils.dictionary_contains_keys(response, Definition.api_keys_market_summary):
             return MarketSummary(response[Definition.api_key_MarketName],
                     response[Definition.api_key_High],
                     response[Definition.api_key_Low],
@@ -177,7 +220,7 @@ class Utilities:
 
     @staticmethod
     def create_order_from_historical(row, index):
-        if Utilities.dictionary_contains_keys(row, Definition.file_keys_historical_orders):
+        if Utils.dictionary_contains_keys(row, Definition.file_keys_historical_orders):
             if len(row[Definition.csv_key_order_uuid]) == 0 or row[Definition.csv_key_order_uuid].isspace():
                 return None
             return Order(index + 1,
@@ -192,7 +235,7 @@ class Utilities:
 
     @staticmethod
     def create_order(value, index):
-        if Utilities.dictionary_contains_keys(value, Definition.file_keys_orders):
+        if Utils.dictionary_contains_keys(value, Definition.file_keys_orders):
             return Order(index + 1,
                          value[Definition.file_key_crypto],
                          value[Definition.file_key_market],
@@ -202,3 +245,46 @@ class Utilities:
                          value[Definition.file_key_buy_cost],
                          value[Definition.file_key_sell_price])
         return None
+
+    @staticmethod
+    def log(msg, mode, ex=None):
+        Utils.log_to_file(msg, mode, ex)
+        if Config.logging == Config.LoggingModes.OFF:  # 0
+            return
+        elif Config.logging >= Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
+            print("FATAL - " + msg + " " + repr(ex))
+            return
+        elif Config.logging >= Config.LoggingModes.ERROR and mode <= Config.LoggingModes.ERROR:  # 2
+            print("ERROR - " + msg)
+            return
+        elif Config.logging >= Config.LoggingModes.WARN and mode <= Config.LoggingModes.WARN:  # 3
+            print("WARNING - " + msg)
+            return
+        elif Config.logging >= Config.LoggingModes.INFO and mode <= Config.LoggingModes.INFO:  # 4
+            print("INFO - " + msg)
+            return
+        elif Config.logging >= Config.LoggingModes.DEBUG and mode <= Config.LoggingModes.DEBUG:  # 5
+            print("DEBUG - " + msg)
+            return
+        elif Config.logging >= Config.LoggingModes.TRACE and mode <= Config.LoggingModes.TRACE:  # 6
+            print("TRACE - " + msg)
+            return
+        else:  # 7
+            print("ALL - " + msg)
+
+    @staticmethod
+    def log_to_file(msg, mode, ex):
+        try:
+            if not os.path.exists(os.path.dirname(APPLICATION_LOG_FILE_PATH)):
+                os.makedirs(os.path.dirname(APPLICATION_LOG_FILE_PATH))
+            with open(APPLICATION_LOG_FILE_PATH, 'a+') as f:
+                if isinstance(ex, Exception):
+                    ex = repr(ex)
+                if type(ex) is not str:
+                    ex = ''
+                f.write(str(datetime.datetime.now()) + " | " + str(mode.name) + ": " + str(msg) + str(ex) + '\n')
+                f.close()
+        except Exception, logging_exception:
+            if type(ex) is Exception:
+                raise ex # raise original exception, if present - it's the reason we're here anyway.
+            raise logging_exception # otherwise re-raise most current exception
