@@ -9,7 +9,6 @@ class Menus:
                 self.Menu.MenuItem("Exit")
             ],
         )
-
         self.orders_menu = self.Menu(
             2,
             "O   R   D   E   R   S",
@@ -21,14 +20,16 @@ class Menus:
             ],
         )
 
+
         self.configuration = self.Menu(
             3,
             "C  O  N  F  I  G  U  R  A  T  I  O  N",
             [
-                self.Menu.MenuItem("Enter API Key"),
+                self.Menu.MenuItem("Enter New API Key"),
                 self.Menu.MenuItem("Print API Key"),
-                self.Menu.MenuItem("Enter Secret Key"),
-                self.Menu.MenuItem("Print Secret Key")
+                self.Menu.MenuItem("Enter New Secret Key"),
+                self.Menu.MenuItem("Print Secret Key"),
+                self.Menu.MenuItem("Back")
             ]
         )
 

@@ -2,6 +2,9 @@ from enum import IntEnum
 
 
 class Config:
+    EXPECTED_API_KEY_LENGTH = 32
+    EXPECTED_SECRET_KEY_LENGTH = 32
+
     class LoggingModes(IntEnum):
         OFF = 0
         FATAL = 1
@@ -14,4 +17,3 @@ class Config:
 
     debug_mode = False
     logging = LoggingModes.ERROR
-

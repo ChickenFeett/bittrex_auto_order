@@ -1,13 +1,16 @@
 import csv
-import copy
+import os
+
+import datetime
+
 from .openorder import OpenOrder
 from .configuration import Config
 from .crypto_balance import CryptoBalance
 from .order import Order
 from .definitions import Definition
 from .market_summary import MarketSummary
-import msvcrt
 import json
+import decimal
 
 SELL_MARK_UP = 2  # 200% mark up
 SELL_AMOUNT_DIVIDER = 2 # Only sell half
@@ -18,10 +21,11 @@ class Utils:
         pass
 
     @staticmethod
-    def wait_for_any_key():
-        while msvcrt.kbhit():  # remove any keys in buffer
-            msvcrt.getch()
-        msvcrt.getch()  # then wait for key press
+    def float_to_str(input_to_parse):
+        ctx = decimal.Context()
+        ctx.prec = 20
+        d1 = ctx.create_decimal(repr(input_to_parse))
+        return format(d1, 'f')
 
     @staticmethod
     def get_currency_from_exchange(exchange):
@@ -111,10 +115,12 @@ class Utils:
             return None
         for result in results:
             order = Utils.create_open_order(result)
+            rows_processed = rows_processed + 1
             if order is not None:
                 orders.append(order)
-            rows_processed = rows_processed + 1
-        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully", Config.LoggingModes.INFO)
+                Utils.log(str(rows_processed) + " of " + str(len(results)) + ". " + order.exchange + " open order processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Open order processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
         return orders
 
     @staticmethod
@@ -131,11 +137,13 @@ class Utils:
         if type(results) == dict:
             results = [results]
         for result in results:
-            order = Utils.get_balance(result, rows_processed)
-            if order is not None and order.balance > 0:
-                balances.append(order)
+            balance = Utils.get_balance(result, rows_processed)
+            if balance is not None and balance.balance > 0:
+                balances.append(balance)
+                Utils.log(balance.currency + " balance processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Balance processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
             rows_processed = rows_processed + 1
-        Utils.log(str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully", Config.LoggingModes.INFO)
         return balances
 
     @staticmethod
@@ -243,22 +251,22 @@ class Utils:
         Utils.log_to_file(msg, mode, ex)
         if Config.logging == Config.LoggingModes.OFF:  # 0
             return
-        elif Config.logging == Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
-            print("FATAL - " + msg)
+        elif Config.logging >= Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
+            print("FATAL - " + msg + " " + repr(ex))
             return
-        elif Config.logging == Config.LoggingModes.ERROR and mode <= Config.LoggingModes.ERROR:  # 2
+        elif Config.logging >= Config.LoggingModes.ERROR and mode <= Config.LoggingModes.ERROR:  # 2
             print("ERROR - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.WARN and mode <= Config.LoggingModes.WARN:  # 3
+        elif Config.logging >= Config.LoggingModes.WARN and mode <= Config.LoggingModes.WARN:  # 3
             print("WARNING - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.INFO and mode <= Config.LoggingModes.INFO:  # 4
+        elif Config.logging >= Config.LoggingModes.INFO and mode <= Config.LoggingModes.INFO:  # 4
             print("INFO - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.DEBUG and mode <= Config.LoggingModes.DEBUG:  # 5
+        elif Config.logging >= Config.LoggingModes.DEBUG and mode <= Config.LoggingModes.DEBUG:  # 5
             print("DEBUG - " + msg)
             return
-        elif Config.logging == Config.LoggingModes.TRACE and mode <= Config.LoggingModes.TRACE:  # 6
+        elif Config.logging >= Config.LoggingModes.TRACE and mode <= Config.LoggingModes.TRACE:  # 6
             print("TRACE - " + msg)
             return
         else:  # 7
@@ -267,12 +275,14 @@ class Utils:
     @staticmethod
     def log_to_file(msg, mode, ex):
         try:
-            with open(APPLICATION_LOG_FILE_PATH, 'w+') as f:
-                if type(ex) is str:
-                    ex = '\n' + ex
-                else:
+            if not os.path.exists(os.path.dirname(APPLICATION_LOG_FILE_PATH)):
+                os.makedirs(os.path.dirname(APPLICATION_LOG_FILE_PATH))
+            with open(APPLICATION_LOG_FILE_PATH, 'a+') as f:
+                if isinstance(ex, Exception):
+                    ex = repr(ex)
+                if type(ex) is not str:
                     ex = ''
-                f.write(str(mode) + ": " + str(msg) + str(ex))
+                f.write(str(datetime.datetime.now()) + " | " + str(mode.name) + ": " + str(msg) + str(ex) + '\n')
                 f.close()
         except Exception, logging_exception:
             if type(ex) is Exception:
