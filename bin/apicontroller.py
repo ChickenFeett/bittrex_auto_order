@@ -17,10 +17,26 @@ class ApiController:
 
     def print_detailed_open_order_stats(self):
         open_orders = self.look_up_open_orders()
+        if open_orders is None:
+            Utils.log("Failed to retrieve open orders", Config.LoggingModes.ERROR)
+            return
         for order in open_orders:
             currency = Utils.get_currency_from_exchange(order.exchange)
             balance = self.get_balance(currency)
             self.print_order_stats(order, balance)
+
+    def print_detailed_balance_stats(self):
+        balances = self.get_balances()
+        if balances is None:
+            Utils.log("Failed to retrieve balances", Config.LoggingModes.ERROR)
+            return
+        for balance in balances:
+            # TODO - Make this print pretty stats
+            print (balance)
+
+    def get_balances(self):
+        # TODO - implement this function
+        return None
 
     def get_balance(self, currency):
         if currency is None:
@@ -33,7 +49,7 @@ class ApiController:
         return None
 
     def look_up_open_orders(self):
-        Utils.log("\nAttempting to lookup orders", Config.LoggingModes.INFO)
+        Utils.log("Attempting to lookup orders", Config.LoggingModes.INFO)
         r = self.send_request("https://bittrex.com/api/v1.1/market/getopenorders?apikey="+self.api_key)
         return Utils.process_open_orders(r.json())
 

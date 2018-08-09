@@ -1,5 +1,8 @@
 import csv
-import copy
+import os
+
+import datetime
+
 from .openorder import OpenOrder
 from .configuration import Config
 from .crypto_balance import CryptoBalance
@@ -11,11 +14,13 @@ import decimal
 
 SELL_MARK_UP = 2  # 200% mark up
 SELL_AMOUNT_DIVIDER = 2 # Only sell half
+APPLICATION_LOG_FILE_PATH = "data\\bao.log"
 
 class Utils:
     def __init__(self):
         pass
 
+    @staticmethod
     def float_to_str(input_to_parse):
         ctx = decimal.Context()
         ctx.prec = 20
@@ -110,10 +115,12 @@ class Utils:
             return None
         for result in results:
             order = Utils.create_open_order(result)
+            rows_processed = rows_processed + 1
             if order is not None:
                 orders.append(order)
-            rows_processed = rows_processed + 1
-        Utils.log(str(len(orders)) + " of " + str(rows_processed) + " open orders processed successfully", Config.LoggingModes.INFO)
+                Utils.log(str(rows_processed) + " of " + str(len(results)) + ". " + order.exchange + " open order processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Open order processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
         return orders
 
     @staticmethod
@@ -130,11 +137,13 @@ class Utils:
         if type(results) == dict:
             results = [results]
         for result in results:
-            order = Utils.get_balance(result, rows_processed)
-            if order is not None and order.balance > 0:
-                balances.append(order)
+            balance = Utils.get_balance(result, rows_processed)
+            if balance is not None and balance.balance > 0:
+                balances.append(balance)
+                Utils.log(balance.currency + " balance processed successfully", Config.LoggingModes.INFO)
+            else:
+                Utils.log("Balance processing failure, with response:\n" + str(result), Config.LoggingModes.ERROR)
             rows_processed = rows_processed + 1
-        Utils.log(str(len(balances)) + " of " + str(rows_processed) + " balances processed successfully", Config.LoggingModes.INFO)
         return balances
 
     @staticmethod
@@ -238,7 +247,8 @@ class Utils:
         return None
 
     @staticmethod
-    def log(msg, mode):
+    def log(msg, mode, ex=None):
+        Utils.log_to_file(msg, mode, ex)
         if Config.logging == Config.LoggingModes.OFF:  # 0
             return
         elif Config.logging == Config.LoggingModes.FATAL and mode == Config.LoggingModes.FATAL:  # 1
@@ -261,3 +271,20 @@ class Utils:
             return
         else:  # 7
             print("ALL - " + msg)
+
+    @staticmethod
+    def log_to_file(msg, mode, ex):
+        try:
+            if not os.path.exists(os.path.dirname(APPLICATION_LOG_FILE_PATH)):
+                os.makedirs(os.path.dirname(APPLICATION_LOG_FILE_PATH))
+            with open(APPLICATION_LOG_FILE_PATH, 'a+') as f:
+                if type(ex) is str:
+                    ex = '\n' + ex
+                else:
+                    ex = ''
+                f.write(str(datetime.datetime.now()) + " | " + str(mode.name) + ": " + str(msg) + str(ex) + '\n')
+                f.close()
+        except Exception, logging_exception:
+            if type(ex) is Exception:
+                raise ex # raise original exception, if present - it's the reason we're here anyway.
+            raise logging_exception # otherwise re-raise most current exception
