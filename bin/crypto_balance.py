@@ -12,7 +12,7 @@ class CryptoBalance:
         self.currency = str(currency)
         self.balance = float(balance)
         self.available = float(available)
-        self.pending = str(pending)
+        self.pending = float(pending)
         self.crypto_address = str(crypto_address)
         if (self.number is None or
             self.crypo_balance_id is None or

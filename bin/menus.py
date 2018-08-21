@@ -1,17 +1,26 @@
+from utils import Utils
+from configuration import LoggingModes
+
+
 class Menus:
     def __init__(self):
+        Utils.log("Initializing Menus", LoggingModes.DEBUG)
+
+        Utils.log("Creating Main Menu", LoggingModes.DEBUG)
         self.main_menu = self.Menu(
             1,
-            "M  A  I  N     M  E  N  U",
+            "Main Menu",
             [
                 self.Menu.MenuItem("Orders"),
                 self.Menu.MenuItem("Configuration"),
                 self.Menu.MenuItem("Exit")
             ],
         )
+
+        Utils.log("Creating Orders Menu", LoggingModes.DEBUG)
         self.orders_menu = self.Menu(
             2,
-            "O   R   D   E   R   S",
+            "Orders",
             [
                 self.Menu.MenuItem("Print Open Orders"),
                 self.Menu.MenuItem("Print Balances"),
@@ -20,10 +29,10 @@ class Menus:
             ],
         )
 
-
+        Utils.log("Creating Configuration Menu", LoggingModes.DEBUG)
         self.configuration = self.Menu(
             3,
-            "C  O  N  F  I  G  U  R  A  T  I  O  N",
+            "Configuration",
             [
                 self.Menu.MenuItem("Enter New API Key"),
                 self.Menu.MenuItem("Print API Key"),
@@ -33,6 +42,7 @@ class Menus:
             ]
         )
 
+        Utils.log("Setting default current menu ( Menu Main )", LoggingModes.DEBUG)
         self.current_menu = self.main_menu
 
     class Menu:

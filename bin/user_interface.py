@@ -4,6 +4,8 @@ import os
 import threading
 from bin.splash import Splash
 from .menus import Menus
+from .configuration import LoggingModes
+from utils import Utils
 
 class UserInterface:
     def __init__(self, menus, fatal_exception_callback):
@@ -22,6 +24,7 @@ class UserInterface:
     system_exit_requested = False
 
     def print_title(self, title):
+        title = self.format_title(title)
         spaces = int((self.menu_width - self.menu_border - len(title)) / 2) * ' '
         title_row = "  |"+spaces+title+spaces+"|"
         print ("  ,_________________________________________________________________________,")
@@ -74,6 +77,7 @@ class UserInterface:
             self.handle_fatal_exception(ex)
 
     def run(self, menu):
+        Utils.log("Running menu " + menu.title, LoggingModes.DEBUG)
         self.current_menu = menu
         self.draw()
         self.disconnected = False
@@ -95,3 +99,14 @@ class UserInterface:
             msvcrt.getch()
         msvcrt.getch()  # then wait for key press
         self.run(return_menu)
+
+    # Format title to present in GUI by adding spaces between each character.
+    #  E.G. "My Title" -> "M  Y     T  I  T  L  E"
+    @staticmethod
+    def format_title(title):
+        formatted_title = ""
+        for x in range(0, len(title) - 2): # for each character, excluding last character
+            # create title format with two spaces separating each char
+            formatted_title = formatted_title + title[x] + "  "
+        return formatted_title + title[len(title)-1]  # add last character
+
