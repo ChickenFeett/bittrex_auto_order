@@ -6,6 +6,7 @@ orders.csv
 *.csv
 .idea
 input/*
+output/*
 venv
 venv/*
 data/*
