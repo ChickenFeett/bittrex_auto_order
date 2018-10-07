@@ -1,5 +1,6 @@
 import copy
 import math
+import os
 from utils import Utils
 from configuration import LoggingModes
 
@@ -15,8 +16,8 @@ class OrderController:
         count = 1
         for holding_crypto in pending_orders:
             for order in open_orders:
-                if holding_crypto.market == order.market:
-                    Utils.log(str(count) + ". Open order already exists on " + order.market
+                if holding_crypto.market == order.exchange:
+                    Utils.log(str(count) + ". Open order already exists on " + order.exchange
                             + ".\tCancel this order if you want to renew it.", LoggingModes.INFO)
                     count = count + 1
                     refined_orders.remove(holding_crypto)
@@ -104,7 +105,7 @@ class OrderController:
         print ("\n--------------------------------------------------------------------------------------------------"
                + "\n"+str(index)+". Statistics of " + order.market
                + "\n\t-\tQuantity:................ " + Utils.float_to_str(
-                    order.quantity) + "\tof\t" + Utils.float_to_str(balance.balance)
+                    order.sell_quantity) + "\tof\t" + Utils.float_to_str(balance.balance)
                + "\n\t-\tSell Price:.............. " + Utils.float_to_str(order.sell_price)
                + "\n\t-\tReturn:.................. " + Utils.float_to_str(
                     order.sell_price * order.quantity / 2)
@@ -132,10 +133,53 @@ class OrderController:
                + "\n\t-\tQuantity Remaining:...... " + Utils.float_to_str(
                     open_order.quantity_remaining) + "\tof\t" + Utils.float_to_str(balance.balance)
                + "\n\t-\tSell Price:.............. " + Utils.float_to_str(open_order.limit)
+               + "\n\t-\tCurrent Price:........... " + Utils.float_to_str(high)
                + "\n\t-\tReturn:.................. " + Utils.float_to_str(
                     open_order.limit * open_order.quantity_remaining / 2)
-               + "\n\t-\tCurrent Price:........... " + Utils.float_to_str(high)
+               + "\n\t-\tVolume:.................. " + Utils.float_to_str(market_summary.volume)
+               + "\n\t-\tBase Volume:............. " + Utils.float_to_str(market_summary.base_volume)
                + "\n\t-\tCompletion Percentage:... " + str(round((high / open_order.limit) * 100, 2)) + "%"
                + "\n--------------------------------------------------------------------------------------------------")
 
+    @staticmethod
+    def prepare_output_file():
+        filename = "temp_orders_to_be_confirmed.csv"
+        folder = "output"
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        with open(folder + "\\" + filename, 'w') as f:
+            f.write("Exchange,Available Quantity,Sell Quantity,Sell Price,Return,Current Price,Completion Percentage")
+        return filename
 
+    @staticmethod
+    def append_to_output_file(filename, order, balance, market_summary):
+        high = None
+        current_price = "unknown"
+        market = "unknown"
+        available_quantity = "unknown"
+        sell_quantity = "unknown"
+        sell_price = "unknown"
+        return_price = "unknown"
+        completion_percent = "unknown"
+        if order is not None:
+            market = order.market
+            sell_quantity = Utils.float_to_str(order.sell_quantity)
+            sell_price = Utils.float_to_str(order.sell_price)
+            return_price = Utils.float_to_str(order.sell_price * order.quantity / 2)
+        if balance is not None:
+            available_quantity = Utils.float_to_str(balance.balance)
+        if market_summary is not None:
+            high = float(market_summary.high)
+            current_price = Utils.float_to_str(high)
+        if high is None or high == 1:
+            current_price = "unknown"
+        elif order is not None:
+            completion_percent = str(round((high / order.sell_price) * 100, 2))
+        with open("output\\" + filename, 'a') as f:
+            f.write("\n"+market+","
+                    + available_quantity+","
+                    + sell_quantity+","
+                    + sell_price+","
+                    + return_price+","
+                    + current_price+","
+                    + completion_percent)

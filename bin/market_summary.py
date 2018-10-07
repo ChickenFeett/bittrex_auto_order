@@ -17,9 +17,9 @@ class MarketSummary:
         self.market_name = market_name
         self.high = float(high)
         self.low = float(low)
-        self.volume = volume
+        self.volume = float(volume)
         self.last = last
-        self.base_volume = base_volume
+        self.base_volume = float(base_volume)
         self.timestamp = timestamp
         self.bid = bid
         self.ask = ask

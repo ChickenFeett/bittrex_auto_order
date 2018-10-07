@@ -27,13 +27,11 @@ class BittrexOrderer:
 
     def run(self):
         self.ui.run(self.menus.main_menu)
-        self.exit_lock.acquire() # acquire lock for the first time
-        # try to acquire again - will only be released when user requests to exit application
-        self.exit_lock.acquire()
-        os.system("cls")
-        Utils.log("Exiting.....", LoggingModes.ALL)
-        print("See you next time!")
-        sys.exit()
+        while True:
+            callback = self.ui.callback_queue.get(True, None)  # blocks until an item is available
+            if callback is not None:
+                callback()
+
 
     def initialize_menu_item_callback_functions(self, menus):
         Utils.log("Hooking Up Menu Item's Callback Lambdas", LoggingModes.DEBUG)
@@ -61,9 +59,12 @@ class BittrexOrderer:
         self.ui.run(self.menus.configuration)
 
     def on_exit_activated(self):
-        self.exit_lock.release() # allow exit
+        os.system("cls")
+        Utils.log("Exiting.....", LoggingModes.ALL)
+        print("See you next time!")
+        sys.exit()
 
-     # First tier common items
+    # First tier common items
     def on_first_tier_menu_back_activated(self):
         self.ui.run(self.menus.main_menu)
 
@@ -81,13 +82,17 @@ class BittrexOrderer:
         open_orders = self.api_controller.look_up_open_orders()
         orders = self.order_controller.read_and_process_orders_ready_for_placing_sell_order(balances, open_orders)
         index = 1
+        filename = self.order_controller.prepare_output_file()
         for order in orders:
             balance = self.api_controller.get_balance(order.crypto)
             market_summary = self.api_controller.get_market_summary(order.market)
             self.order_controller.print_order_stats(index, order, balance, market_summary)
+            self.order_controller.append_to_output_file(filename, order, balance, market_summary)
             index = index + 1
-        self.ui.wait_for_any_key(self.menus.orders_menu)
-        self.api_controller.place_orders(orders)
+        if filename is not None:
+            os.system("start " + "output\\" + filename)
+        if self.confirm_order():
+            self.api_controller.place_orders(orders)
         self.ui.wait_for_any_key(self.menus.orders_menu)
 
     # Configuration items
@@ -112,6 +117,16 @@ class BittrexOrderer:
     def on_refresh_keys(self):
         Utils.log("Reading API and Secret keys", LoggingModes.ALL)
         self.api_controller.refresh_keys()
+
+    def confirm_order(self):
+        confirmation = raw_input("Please confirm the placement of orders (y/n): ")
+        if confirmation.lower() == 'y':
+            return True
+        elif confirmation.lower() == 'n':
+            return False
+        else:
+            return self.confirm_order()
+
 
 def handle_fatal_exception(ex):
     Utils.log("Fatal error", LoggingModes.FATAL, ex)

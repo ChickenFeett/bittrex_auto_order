@@ -122,4 +122,4 @@ class ApiController:
         url = "https://bittrex.com/api/v1.1/market/selllimit?apikey="+self.api_key+"&market="+order.market+"&quantity="+str(order.sell_quantity)+"&rate="+str(order.sell_price)
         r = self.send_request(url)
         r = r.json()
-        OrderController.print_placed_order(r, order, high, url)
+        self.order_controller.print_placed_order(r, order, high, url)
